@@ -3,24 +3,19 @@
 ## References
 https://en.wikipedia.org/wiki/Ten-pin_bowling#Scoring
 
-## Data structs / entities
-Scorecard
-  Frame (r1 r2)
-  - where (r1 r2) are the results of each thorw in the frame
-  - Since r2 is optional, maybe something like this:
-    Frame (Int, Maybe Int)
+## My approach
+After thinking this through a bit, I'm going to take the approach of having the API
+centered around individual throws rather than frames.  Having a simpler signature for the
+main scoring function allows us to more easily handle the special cases of spares and
+strikes.  
 
-A frame is actually composed of one or two throws; I'm wondering if it's better to work on a
-series of throws.  This stream of throws would then be divided into frames with these
-classifications:
-  Standard r1 r2 - a non-strike and non-spare frame where r1 and r2 are the results of each
-                   throw in the frame; we preserve r1 and r2 separately because we likely
-                   want to show the scorecard with the option of showing both throws.  
-  Spare r1 r2    - a spare; again, we might preserve r1 and r2 for display purposes.  
-  Strike         - a strike; no need for r1 or r2 here as a strike implies the frame score.  
-  
-The above classification is possible with the suggested API, though I think I'm free to change
-this.  
+Each frame will be stored as a record like this:
+  Event : InProgressThrow (s1) | Throw (s1 s2) | Spare (s1 s2) | Strike
+  Score : PartlyDetermined int | FullyDetermined int
+
+A strike or spare results in a frame with a partly determined score until the subsequent 2 or
+1 frames have completed respectively.  
+
 
 ## Scoring Rules
   - If r1 != 10 && (r1+r2 == 10) then throws are a Spare r1 r2
