@@ -1,6 +1,10 @@
 // Bowling scorecard API
 module Bowling
 
+// Some values for game rules
+let numberOfFramesInBowling = 10
+let numberOfPinsInBowling = 10
+
 // The ball type here should make displaying the scorecard easier if we
 // wanted to do that.  
 type Ball =
@@ -58,14 +62,14 @@ let frameEmptyOrInProgress frame =
                 | FinalFrameBalls.InProgressWithBonus (_)-> true
                 | _ -> false
 
-let getCurrentFrame game = if frameEmptyOrInProgress (List.head game) then List.head game else newFrame
+let getCurrentFrame game = List.head game
 
 
 let classifyBall pinsKnockedDown =
     match pinsKnockedDown with
     | 0 -> Gutter
     | i when i <= 9 -> Hit i
-    | 10 -> Ball.Strike
+    | numberOfPinsInBowling -> Ball.Strike
     | _ -> Invalid
 
 
@@ -73,7 +77,7 @@ let ballScore ball =
     match ball with
     | Gutter -> 0
     | Hit i -> i
-    | Ball.Strike -> 10
+    | Ball.Strike -> numberOfPinsInBowling
     | Invalid -> 0
 
     
@@ -84,7 +88,7 @@ let updateFrame (frame:RegularFrame) pinsKnockedDown =
     in
         match frame.balls with
             | RegularFrameBalls.Empty ->
-                if pinsKnockedDown <> 10 then RegularFrame {balls=RegularFrameBalls.InProgress ball; score=BuildingScore pinsKnockedDown}
+                if pinsKnockedDown <> numberOfPinsInBowling then RegularFrame {balls=RegularFrameBalls.InProgress ball; score=BuildingScore pinsKnockedDown}
                 else RegularFrame {balls=Strike; score=BuildingScore 10}
             | RegularFrameBalls.InProgress x -> 
                 let
@@ -98,15 +102,20 @@ let updateFrame (frame:RegularFrame) pinsKnockedDown =
 // Recalculate the scores for a game
 let updateScores game =
     game
+
+let framesInGame game =
+    List.length game
+
     
 // Our main API function
 let submitBowl game pinsKnockedDown =
     let currentFrame = getCurrentFrame game
-    let newFrame = 
+    let updatedFrame = 
         match currentFrame with
         | RegularFrame f -> updateFrame f pinsKnockedDown
         
-    let newGame = if frameEmptyOrInProgress (List.head game) then newFrame :: List.tail game  else newFrame :: game
+    let newGame = match framesInGame game with
+                  | i when i < numberOfFramesInBowling-1 -> if frameEmptyOrInProgress updatedFrame then updatedFrame :: List.tail game else newFrame :: updatedFrame :: List.tail game
+                  | i when i = numberOfFramesInBowling-1 -> if frameEmptyOrInProgress updatedFrame then updatedFrame :: List.tail game else newFinalFrame :: updatedFrame :: List.tail game
     in
       updateScores newGame
-
