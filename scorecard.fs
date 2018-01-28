@@ -1,70 +1,99 @@
 // Bowling scorecard API
 module Bowling
 
-type FrameBalls =
+// The ball type here should make displaying the scorecard easier if we
+// wanted to do that.  
+type Ball =
+    | Invalid
+    | Gutter
+    | Hit of int
+    | Strike
+
+type RegularFrameBalls =
     | Empty
-    | Incomplete of int
-    | Regular of int * int
-    | Spare of int * int
+    | InProgress of Ball
+    | Regular of Ball * Ball
+    | Spare of Ball * Ball
     | Strike
 
 type FinalFrameBalls =
     | Empty
-    | Incomplete of int
-    | NoBonus of int * int
-    | SpareIncomplete
-    | StrikeIncomplete
-    | SpareWithBonus of int * int * int
-    | StrikeWithSpare of int * int
-    | DoubleStrikeIncomplete
-    | DoubleStrikeWithBonus of int
-    | Turkey
-
+    | InProgress of Ball
+    | InProgressWithBonus of Ball * Ball
+    | CompleteNoBonus of Ball * Ball
+    | CompleteWithBonus of Ball * Ball * Ball
 
 type FrameScore =
     | Unscored
     | BuildingScore of int
     | Scored of int
 
-type RegularFrame = {balls:FrameBalls; score:FrameScore}
+
+type RegularFrame = {balls:RegularFrameBalls; score:FrameScore}
 type FinalFrame = {balls:FinalFrameBalls; score:FrameScore}
 
-type PlayFrame = Regular of RegularFrame | Final of FinalFrame
+type Frame = RegularFrame of RegularFrame | FinalFrame of FinalFrame
 
-type Game = PlayFrame list
+type Game = Frame list
 
-let newFrame = Regular {balls=FrameBalls.Empty; score=Unscored}
-let newFinalFrame = Final {balls=FinalFrameBalls.Empty; score=Unscored}
+let newFrame = RegularFrame {balls=RegularFrameBalls.Empty; score=Unscored}
+let newFinalFrame = FinalFrame {balls=FinalFrameBalls.Empty; score=Unscored}
 let createNewGame = [ newFrame ]
 
-let scoreCard = createNewGame
 
 // Now for some convenience functions
-let frameEmptyOrIncomplete frame = 
+let scoreCard = createNewGame
+
+let frameEmptyOrInProgress frame = 
     match frame with
-        | Regular f ->
+        | RegularFrame f ->
             match f.balls with
-                | FrameBalls.Empty -> true
-                | FrameBalls.Incomplete _ -> true
+                | RegularFrameBalls.Empty -> true
+                | RegularFrameBalls.InProgress _ -> true
                 | _ -> false
-        | Final f ->
+        | FinalFrame f ->
             match f.balls with
                 | FinalFrameBalls.Empty -> true
-                | FinalFrameBalls.Incomplete _ -> true
-                | FinalFrameBalls.SpareIncomplete _ -> true
-                | FinalFrameBalls.StrikeIncomplete _ -> true
+                | FinalFrameBalls.InProgress _ -> true
+                | FinalFrameBalls.InProgressWithBonus (_)-> true
                 | _ -> false
 
-let getCurrentFrame game = if frameEmptyOrIncomplete (List.head game) then List.head game else newFrame
+let getCurrentFrame game = if frameEmptyOrInProgress (List.head game) then List.head game else newFrame
 
 
+let classifyBall pinsKnockedDown =
+    match pinsKnockedDown with
+    | 0 -> Gutter
+    | i when i <= 9 -> Hit i
+    | 10 -> Ball.Strike
+    | _ -> Invalid
+
+
+let ballScore ball =
+    match ball with
+    | Gutter -> 0
+    | Hit i -> i
+    | Ball.Strike -> 10
+    | Invalid -> 0
+
+    
 // Given a frame and a number of pins knocked down, return the new frame
-let updateFrame frame pinsKnockedDown =
-    match frame.bowl with
-        | Empty -> {bowl=Incomplete pinsKnockedDown; score=BuildingScore pinsKnockedDown}
-        | Incomplete x -> {bowl=Regular (x,pinsKnockedDown); score=Scored pinsKnockedDown}
-        | _ -> frame
-
+let updateFrame (frame:RegularFrame) pinsKnockedDown =
+    let
+        ball = classifyBall pinsKnockedDown
+    in
+        match frame.balls with
+            | RegularFrameBalls.Empty ->
+                if pinsKnockedDown <> 10 then RegularFrame {balls=RegularFrameBalls.InProgress ball; score=BuildingScore pinsKnockedDown}
+                else RegularFrame {balls=Strike; score=BuildingScore 10}
+            | RegularFrameBalls.InProgress x -> 
+                let
+                    totalPins = ballScore x + pinsKnockedDown
+                in
+                    if totalPins <> 10 then RegularFrame {balls=RegularFrameBalls.Regular (x,ball); score=Scored totalPins}
+                    else RegularFrame {balls=RegularFrameBalls.Spare (x,ball); score=BuildingScore 10}
+            | _ ->
+                RegularFrame frame
 
 // Recalculate the scores for a game
 let updateScores game =
@@ -73,8 +102,11 @@ let updateScores game =
 // Our main API function
 let submitBowl game pinsKnockedDown =
     let currentFrame = getCurrentFrame game
-    let newFrame = updateFrame currentFrame
-    let newGame = if frameEmptyOrIncomplete (List.head game) then newFrame :: List.tail game  else newFrame :: game
+    let newFrame = 
+        match currentFrame with
+        | RegularFrame f -> updateFrame f pinsKnockedDown
+        
+    let newGame = if frameEmptyOrInProgress (List.head game) then newFrame :: List.tail game  else newFrame :: game
     in
       updateScores newGame
 
