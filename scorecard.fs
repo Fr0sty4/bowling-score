@@ -13,55 +13,21 @@ type Ball =
     | Hit of int
     | Strike
 
-type RegularFrameBalls =
-    | Empty
-    | InProgress of Ball
-    | Regular of Ball * Ball
-    | Spare of Ball * Ball
-    | Strike
-
-type FinalFrameBalls =
-    | Empty
-    | InProgress of Ball
-    | InProgressWithBonus of Ball * Ball
-    | CompleteNoBonus of Ball * Ball
-    | CompleteWithBonus of Ball * Ball * Ball
-
+type FrameProgression = Unplayed | InProgress | Complete
 type FrameScore =
     | Unscored
     | BuildingScore of int
     | Scored of int
 
-
-type RegularFrame = {balls:RegularFrameBalls; score:FrameScore}
-type FinalFrame = {balls:FinalFrameBalls; score:FrameScore}
-
-type Frame = RegularFrame of RegularFrame | FinalFrame of FinalFrame
-
+type Frame = {progress:FrameProgression;throws:Ball list; score:FrameScore}
 type Game = Frame list
 
-let newFrame = RegularFrame {balls=RegularFrameBalls.Empty; score=Unscored}
-let newFinalFrame = FinalFrame {balls=FinalFrameBalls.Empty; score=Unscored}
+let newFrame = {progress=Unplayed;throws=[];score=Unscored}
 let createNewGame = [ newFrame ]
 
 
 // Now for some convenience functions
 let scoreCard = createNewGame
-
-let frameEmptyOrInProgress frame = 
-    match frame with
-        | RegularFrame f ->
-            match f.balls with
-                | RegularFrameBalls.Empty -> true
-                | RegularFrameBalls.InProgress _ -> true
-                | _ -> false
-        | FinalFrame f ->
-            match f.balls with
-                | FinalFrameBalls.Empty -> true
-                | FinalFrameBalls.InProgress _ -> true
-                | FinalFrameBalls.InProgressWithBonus (_)-> true
-                | _ -> false
-
 let getCurrentFrame game = List.head game
 
 
@@ -86,22 +52,35 @@ let updateFrame (frame:RegularFrame) pinsKnockedDown =
     let
         ball = classifyBall pinsKnockedDown
     in
-        match frame.balls with
-            | RegularFrameBalls.Empty ->
-                if pinsKnockedDown <> numberOfPinsInBowling then RegularFrame {balls=RegularFrameBalls.InProgress ball; score=BuildingScore pinsKnockedDown}
-                else RegularFrame {balls=Strike; score=BuildingScore 10}
-            | RegularFrameBalls.InProgress x -> 
+        match frame.progress with
+            | RegularFrameClass.Unplayed ->
+                if pinsKnockedDown <> numberOfPinsInBowling then RegularFrame {progress=RegularFrameClass.InProgress; throws=[ball];score=BuildingScore pinsKnockedDown}
+                else RegularFrame {progress=RegularFrameClass.Strike; throws=ball::frame.throws;score=BuildingScore 10}
+            | RegularFrameClass.InProgress -> 
                 let
                     totalPins = ballScore x + pinsKnockedDown
                 in
-                    if totalPins <> 10 then RegularFrame {balls=RegularFrameBalls.Regular (x,ball); score=Scored totalPins}
-                    else RegularFrame {balls=RegularFrameBalls.Spare (x,ball); score=BuildingScore 10}
+                    if totalPins <> 10 then RegularFrame {progress=RegularFrameClass.Regular; throws=ball::frame.throws;score=Scored totalPins}
+                    else RegularFrame {progress=RegularFrameClass.Spare; throws=ball::frame.throws;score=BuildingScore 10}
             | _ ->
                 RegularFrame frame
 
 // Recalculate the scores for a game
 let updateScores game =
-    game
+    let scoreBeingBuilt sc =
+        match sc with
+        | BuildingScore _ -> true
+        | _ -> false
+    let rec updateScoresR frames acc =
+        match frames with
+        | [RegularFrame ft1;RegularFrame ft]::rest when scoreBeingBuilt ft.score ->
+            updateScoresR rest [ft1;ft]
+        | [ft2;ft1;ft]::rest when frameNeedsScore ft ->
+            updateScoresR rest [ft2;ft1;ft]
+        | [] -> acc
+    in
+        updateScoresR game []
+
 
 let framesInGame game =
     List.length game
