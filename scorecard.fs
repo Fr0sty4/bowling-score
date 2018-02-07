@@ -45,7 +45,7 @@ let getCurrentFrame game = List.head game
 
 let frameIsStrike frame =
     match frame.throws with
-    | [x; _] when x=numberOfPinsInBowling -> true
+    | [x] when x=numberOfPinsInBowling -> true
     | _ -> false
 
 let frameIsSpare frame =
@@ -92,7 +92,7 @@ let updateScores game =
             fr2::fr1::{fr with score=Scored
                             (20 + (getNumericScoreValue fr2.score))}::rest
         // Spare scoring case
-        | fr1::fr::rest when (scoreBeingBuilt fr.score) && (frameIsSpare fr) && not <| (frameIsStrike fr1) ->
+        | fr1::fr::rest when (scoreBeingBuilt fr.score) && (frameIsSpare fr) && not (List.isEmpty fr1.throws) ->
             fr1::{fr with score=Scored
                         (10 + (List.head fr1.throws))}::rest
         | _ -> game
