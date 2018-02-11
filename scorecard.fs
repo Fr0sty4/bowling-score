@@ -55,7 +55,7 @@ let frameIsSpare frame =
     
     
 // Given a frame and a number of pins knocked down, return the new frame
-let updateFrame frame pinsKnockedDown =
+let updateFrame frame pinsKnockedDown frameIsFinal =
     match frame.progress with
         | Unplayed ->
             if pinsKnockedDown <> numberOfPinsInBowling then
@@ -77,21 +77,21 @@ let getNumericScoreValue score =
     | BuildingScore s -> s
     | Scored s -> s
 
-let updateScores game =
+let updateScores game frameIsFinal =
     let scoreBeingBuilt sc =
         match sc with
         | BuildingScore _ -> true
         | _ -> false
     in
         match game with
-        // Strike scoring cases
+        // Strike scoring cases - in-game
         | fr1::fr::rest when (scoreBeingBuilt fr.score) && (frameIsStrike fr) && (not <| frameIsStrike fr1) && (fr1.progress=Complete) ->
             fr1::{fr with score=Scored
                        (10 + (getNumericScoreValue fr1.score))}::rest
         | fr2::fr1::fr::rest when (scoreBeingBuilt fr.score) && (frameIsStrike fr) && (frameIsStrike fr1) && (fr2.progress=Complete) ->
             fr2::fr1::{fr with score=Scored
                             (20 + (getNumericScoreValue fr2.score))}::rest
-        // Spare scoring case
+        // Spare scoring case - in-game
         | fr1::fr::rest when (scoreBeingBuilt fr.score) && (frameIsSpare fr) && not (List.isEmpty fr1.throws) ->
             fr1::{fr with score=Scored
                         (10 + (List.head fr1.throws))}::rest
@@ -105,12 +105,16 @@ let framesInGame game =
 // Our main API function
 let submitBowl pinsKnockedDown game =
     let currentFrame = getCurrentFrame game
-    let updatedFrame = updateFrame currentFrame pinsKnockedDown
-    let gameFinished = (List.length game)=numberOfFramesInBowling
+    let frameIsFinal = (List.length game)=numberOfFramesInBowling && (List.head game).progress <> Complete
+    let updatedFrame = updateFrame currentFrame pinsKnockedDown frameIsFinal
+    let gameFinished = frameIsFinal && (List.head game).progress = Complete
         
     let newGame =
         if not gameFinished then
-            if updatedFrame.progress <> Complete then updateScores <| updatedFrame :: List.tail game else newFrame :: (updateScores <| updatedFrame :: List.tail game)
+            if updatedFrame.progress <> Complete then
+                updateScores <| (updatedFrame :: List.tail game) <| frameIsFinal
+            else
+                newFrame :: (updateScores <| (updatedFrame :: List.tail game) <| frameIsFinal)
         else
             game
     in
