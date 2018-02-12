@@ -74,9 +74,9 @@ let submitBowl pins game =
 
 if (createNewGame) <> [FrameR (Unplayed, Unscored)] then printfn "newGame test failed" else printfn "newGame test passed"
 
-if List.fold (fun game pins -> submitBowl pins game) createNewGame [1;1;1;1;1;1;1;1;1;1] <>
-    [FrameR <| (Complete (1,1), Scored 2); FrameR <| (Complete (1,1), Scored 2); FrameR <| (Complete (1,1), Scored 2); FrameR <| (Complete (1,1), Scored 2); FrameR <| (Complete (1,1), Scored 2);
-     FrameR <| (Complete (1,1), Scored 2); FrameR <| (Complete (1,1), Scored 2); FrameR <| (Complete (1,1), Scored 2); FrameR <| (Complete (1,1), Scored 2); FrameF <| (CompleteF (1,1), Scored 2)]
+if List.fold (fun game pins -> submitBowl pins game) createNewGame [1;1;1;1;1;1;1;1;1;1;1;1;1;1;1;1;1;1;1;1] <>
+    [FrameF <| (CompleteF (1,1), Scored 2); FrameR <| (Complete (1,1), Scored 2); FrameR <| (Complete (1,1), Scored 2); FrameR <| (Complete (1,1), Scored 2); FrameR <| (Complete (1,1), Scored 2);
+     FrameR <| (Complete (1,1), Scored 2); FrameR <| (Complete (1,1), Scored 2); FrameR <| (Complete (1,1), Scored 2); FrameR <| (Complete (1,1), Scored 2); FrameR <| (Complete (1,1), Scored 2)]
 then
     printfn "Simple game test failed"
 else
